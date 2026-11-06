@@ -1,0 +1,355 @@
+
+<!-- LOGIN -->
+<div *ngIf="!loggedIn" class="login-container">
+  <div class="login-card">
+    <div class="logo">
+      <h1>Swift<span>Track</span></h1>
+      <p>Package Delivery Management System</p>
+    </div>
+
+    <h2>Welcome Back</h2>
+    <p class="subtitle">Login to manage your packages</p>
+
+    <form (ngSubmit)="login()">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" name="email" [(ngModel)]="email"
+          placeholder="Enter your email" required>
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" [(ngModel)]="password"
+          placeholder="Enter your password" required>
+      </div>
+
+      <button type="submit" [disabled]="loading">
+        {{ loading ? 'Logging in...' : 'Login' }}
+      </button>
+
+      <p class="error-message" *ngIf="error">{{ error }}</p>
+    </form>
+  </div>
+</div>
+
+<!-- LOGGED-IN DASHBOARD -->
+<div *ngIf="loggedIn" class="dashboard">
+
+  <header class="dashboard-header">
+    <h1>Swift<span>Track</span></h1>
+    <button (click)="logout()">Logout</button>
+  </header>
+
+  <!-- CUSTOMER DASHBOARD -->
+  <main class="dashboard-content" *ngIf="userRole === 'customer'">
+
+    <h2>Welcome, {{ userName }}!</h2>
+    <p>You are logged in as: <strong>Customer</strong></p>
+
+    <div class="dashboard-cards">
+
+      <div class="dashboard-card">
+        <h3>My Orders</h3>
+        <p>View and track your packages.</p>
+        <button (click)="loadMyOrders()">View Orders</button>
+      </div>
+
+      <div class="dashboard-card">
+        <h3>Create New Order</h3>
+        <p>Send a package to your customer.</p>
+        <button (click)="showCreateOrder = !showCreateOrder">
+          {{ showCreateOrder ? 'Close Form' : 'Create Order' }}
+        </button>
+      </div>
+
+    </div>
+
+    <!-- CUSTOMER ORDERS -->
+    <div class="order-form" *ngIf="showMyOrders">
+
+      <h2>My Orders</h2>
+
+      <button (click)="loadMyOrders()" [disabled]="loadingOrders">
+        {{ loadingOrders ? 'Loading...' : 'Refresh Orders' }}
+      </button>
+
+      <p *ngIf="loadingOrders">Loading orders...</p>
+      <p *ngIf="ordersError" class="error-message">{{ ordersError }}</p>
+
+      <p *ngIf="!loadingOrders && !ordersError && orders.length === 0">
+        You haven't created any orders yet.
+      </p>
+
+      <div *ngFor="let order of orders" class="dashboard-card">
+
+        <h3>Order #{{ order.id }}</h3>
+        <p><strong>Pickup:</strong> {{ order.pickup_address }}</p>
+        <p><strong>Delivery:</strong> {{ order.delivery_address }}</p>
+        <p><strong>Package:</strong> {{ order.package_details }}</p>
+        <p><strong>Status:</strong> {{ order.status }}</p>
+
+        <button (click)="viewOrderDetails(order.id)">View Details</button>
+
+        <button *ngIf="order.status === 'Pending'"
+          [disabled]="cancellingOrder"
+          (click)="cancelOrder(order.id)">
+          {{ cancellingOrder ? 'Cancelling...' : 'Cancel Order' }}
+        </button>
+
+      </div>
+
+      <p *ngIf="loadingDetails">Loading details...</p>
+      <p *ngIf="detailsError" class="error-message">{{ detailsError }}</p>
+
+      <div *ngIf="selectedOrder" class="dashboard-card">
+        <h3>Order Details #{{ selectedOrder.id }}</h3>
+        <p><strong>Pickup:</strong> {{ selectedOrder.pickup_address }}</p>
+        <p><strong>Delivery:</strong> {{ selectedOrder.delivery_address }}</p>
+        <p><strong>Package:</strong> {{ selectedOrder.package_details }}</p>
+        <p><strong>Delivery Time:</strong> {{ selectedOrder.delivery_time }}</p>
+        <p><strong>Status:</strong> {{ selectedOrder.status }}</p>
+      </div>
+
+    </div>
+
+    <!-- CREATE ORDER -->
+    <div class="order-form" *ngIf="showCreateOrder">
+
+      <h2>Create a New Order</h2>
+
+      <form (ngSubmit)="createOrder()">
+
+        <div class="form-group">
+          <label>Pickup Address</label>
+          <input type="text" name="pickupAddress"
+            [(ngModel)]="pickupAddress" required>
+        </div>
+
+        <div class="form-group">
+          <label>Delivery Address</label>
+          <input type="text" name="deliveryAddress"
+            [(ngModel)]="deliveryAddress" required>
+        </div>
+
+        <div class="form-group">
+          <label>Package Details</label>
+          <textarea name="packageDetails"
+            [(ngModel)]="packageDetails" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Delivery Date and Time</label>
+          <input type="datetime-local" name="deliveryTime"
+            [(ngModel)]="deliveryTime" required>
+        </div>
+
+        <button type="submit" [disabled]="creatingOrder">
+          {{ creatingOrder ? 'Creating...' : 'Submit Order' }}
+        </button>
+
+        <p *ngIf="orderMessage" class="success-message">{{ orderMessage }}</p>
+        <p *ngIf="orderError" class="error-message">{{ orderError }}</p>
+
+      </form>
+    </div>
+
+  </main>
+
+  <!-- COURIER DASHBOARD -->
+  <main class="dashboard-content" *ngIf="userRole === 'courier'">
+
+    <h2>Welcome, {{ userName }}!</h2>
+    <p>You are logged in as: <strong>Courier</strong></p>
+
+    <h2>My Assigned Deliveries</h2>
+
+    <button (click)="loadCourierOrders()" [disabled]="loadingCourierOrders">
+      {{ loadingCourierOrders ? 'Loading...' : 'Refresh Deliveries' }}
+    </button>
+
+    <p *ngIf="loadingCourierOrders">Loading deliveries...</p>
+    <p *ngIf="courierError" class="error-message">{{ courierError }}</p>
+    <p *ngIf="courierMessage" class="success-message">{{ courierMessage }}</p>
+
+    <p *ngIf="!loadingCourierOrders && courierOrders.length === 0">
+      You have no assigned deliveries.
+    </p>
+
+    <div *ngFor="let order of courierOrders" class="dashboard-card">
+
+      <h3>Order #{{ order.order_id }}</h3>
+
+      <p><strong>Pickup:</strong> {{ order.pickup_address }}</p>
+      <p><strong>Delivery:</strong> {{ order.delivery_address }}</p>
+      <p><strong>Package:</strong> {{ order.package_details }}</p>
+      <p><strong>Assignment:</strong> {{ order.assignment_status }}</p>
+      <p><strong>Delivery Status:</strong> {{ order.order_status }}</p>
+
+      <div *ngIf="order.assignment_status === 'Assigned'">
+
+        <button [disabled]="processingAssignment"
+          (click)="decideAssignment(order.assignment_id, 'Accepted')">
+          Accept
+        </button>
+
+        <button [disabled]="processingAssignment"
+          (click)="decideAssignment(order.assignment_id, 'Declined')">
+          Decline
+        </button>
+
+      </div>
+
+      <div *ngIf="order.assignment_status === 'Accepted'">
+
+        <button
+          *ngIf="order.order_status === 'Accepted'"
+          [disabled]="processingAssignment"
+          (click)="updateDeliveryStatus(order.order_id, 'Picked Up')">
+          Mark as Picked Up
+        </button>
+
+        <button
+          *ngIf="order.order_status === 'Picked Up'"
+          [disabled]="processingAssignment"
+          (click)="updateDeliveryStatus(order.order_id, 'In Transit')">
+          Mark as In Transit
+        </button>
+
+        <button
+          *ngIf="order.order_status === 'In Transit'"
+          [disabled]="processingAssignment"
+          (click)="updateDeliveryStatus(order.order_id, 'Delivered')">
+          Mark as Delivered
+        </button>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ADMIN DASHBOARD -->
+  <main class="dashboard-content" *ngIf="userRole === 'admin'">
+
+    <h2>Welcome, {{ userName }}!</h2>
+    <p>You are logged in as: <strong>Administrator</strong></p>
+
+    <h2>All Orders</h2>
+
+    <button (click)="loadAdminData()" [disabled]="loadingAdmin">
+      {{ loadingAdmin ? 'Loading...' : 'Refresh Dashboard' }}
+    </button>
+
+    <p *ngIf="loadingAdmin">Loading admin data...</p>
+    <p *ngIf="adminError" class="error-message">{{ adminError }}</p>
+    <p *ngIf="adminMessage" class="success-message">{{ adminMessage }}</p>
+
+    <p *ngIf="!loadingAdmin && adminOrders.length === 0">
+      No orders found.
+    </p>
+
+    <div *ngFor="let order of adminOrders" class="dashboard-card">
+
+      <h3>Order #{{ order.id }}</h3>
+
+      <p><strong>Customer:</strong> {{ order.customer_name }}</p>
+      <p><strong>Customer ID:</strong> {{ order.customer_id }}</p>
+      <p><strong>Pickup:</strong> {{ order.pickup_address }}</p>
+      <p><strong>Delivery:</strong> {{ order.delivery_address }}</p>
+      <p><strong>Package:</strong> {{ order.package_details }}</p>
+      <p><strong>Delivery Time:</strong> {{ order.delivery_time }}</p>
+      <p><strong>Status:</strong> {{ order.status }}</p>
+
+      <button (click)="selectOrderForEdit(order)">Edit Order</button>
+
+      <button (click)="deleteAdminOrder(order.id)"
+        [disabled]="loadingAdmin">
+        Delete Order
+      </button>
+
+    </div>
+
+    <!-- ASSIGN COURIER -->
+    <div class="order-form">
+
+      <h2>Assign / Reassign Courier</h2>
+
+      <div class="form-group">
+        <label>Order ID</label>
+        <input type="number"
+          [(ngModel)]="assignOrderId"
+          name="assignOrderId"
+          placeholder="Enter order ID">
+      </div>
+
+      <div class="form-group">
+        <label>Courier ID</label>
+        <input type="number"
+          [(ngModel)]="courierId"
+          name="courierId"
+          placeholder="Enter courier ID">
+      </div>
+
+      <button (click)="assignCourier()">Assign Courier</button>
+      <button (click)="reassignCourier()">Reassign Courier</button>
+
+      <p>Courier 1 ID: 2</p>
+      <p>Courier 2 ID: 4</p>
+
+    </div>
+
+    <!-- EDIT ORDER -->
+    <div class="order-form" *ngIf="editingOrder">
+
+      <h2>Edit Order #{{ editOrderId }}</h2>
+
+      <div class="form-group">
+        <label>Pickup Address</label>
+        <input [(ngModel)]="editPickupAddress" name="editPickupAddress">
+      </div>
+
+      <div class="form-group">
+        <label>Delivery Address</label>
+        <input [(ngModel)]="editDeliveryAddress" name="editDeliveryAddress">
+      </div>
+
+      <div class="form-group">
+        <label>Package Details</label>
+        <textarea [(ngModel)]="editPackageDetails"
+          name="editPackageDetails"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Delivery Date and Time</label>
+        <input type="datetime-local"
+          [(ngModel)]="editDeliveryTime"
+          name="editDeliveryTime">
+      </div>
+
+      <button (click)="saveAdminOrder()">Save Changes</button>
+      <button (click)="editingOrder = false">Cancel</button>
+
+    </div>
+
+    <!-- ASSIGNMENTS -->
+    <h2>Courier Assignments</h2>
+
+    <div *ngFor="let assignment of adminAssignments" class="dashboard-card">
+
+      <h3>Assignment #{{ assignment.assignment_id }}</h3>
+
+      <p><strong>Order:</strong> #{{ assignment.order_id }}</p>
+      <p><strong>Courier:</strong> {{ assignment.courier_name }}</p>
+      <p><strong>Courier ID:</strong> {{ assignment.courier_id }}</p>
+      <p><strong>Assignment Status:</strong> {{ assignment.assignment_status }}</p>
+      <p><strong>Order Status:</strong> {{ assignment.order_status }}</p>
+
+    </div>
+
+    <p *ngIf="!loadingAdmin && adminAssignments.length === 0">
+      No courier assignments found.
+    </p>
+
+  </main>
+
+</div>
